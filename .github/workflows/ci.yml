@@ -25,4 +25,4 @@ jobs:
         run: dotnet restore
 
       - name: Build
-        run: dotnet build --no-restore --configuration Release /warnaserror
+        run: dotnet build --no-restore --configuration Debug /warnaserror
