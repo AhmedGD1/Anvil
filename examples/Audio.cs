@@ -6,7 +6,8 @@ namespace Examples;
 public partial class Audio : Node
 {
     //You can export a list of generated ids for a specific use.
-    
+
+    /*
     [Export(PropertyHint.Enum, Audio.AllNames.EnumNames)]
     public string CurrentAudio { get; set; }
 
@@ -15,6 +16,7 @@ public partial class Audio : Node
 
     [Export(PropertyHint.Enum, Audio.SfxNames.EnumNames)]
     public string CurrentSfx { get; set; }
+    */
 
     // Works as a storage for sfx ids
     [Forge("res://examples/audio_files/sfx/")]
