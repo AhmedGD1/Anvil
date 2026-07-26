@@ -19,7 +19,7 @@ public partial class Audio : Node
     */
 
     // Works as a storage for sfx ids
-    [Forge("res://examples/audio_files/sfx/")]
+    [Forge("res://examples/audio_files/sfx/", mode: ForgeMode.FullPath)]
     public static partial class SfxNames;
 
     // Works as a storage for music ids

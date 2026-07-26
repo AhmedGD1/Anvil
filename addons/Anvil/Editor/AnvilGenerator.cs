@@ -7,7 +7,7 @@ using System.Text;
 
 namespace Anvil.Editor;
 
-internal static class AnvilGenerator
+public static class AnvilGenerator
 {
     public static void GenerateAndSave(List<ForgeData> targets)
     {
@@ -70,17 +70,28 @@ internal static class AnvilGenerator
                             continue;
                         }
 
-                        if (fileName.Contains(','))
+                        if (target.Mode == ForgeMode.FullPath)
                         {
-                            GD.PushWarning($"Anvil: '{fileName}' contains a comma and was excluded from ENUM_NAMES " +
-                                           $"(would corrupt the enum hint string).");
-                        }
-                        else
-                        {
-                            generatedNames.Add(fileName);
+                            string relativePath = Path.GetRelativePath(dirPath, file).Replace('\\', '/');
+                            string resPath = $"{target.ResourcePath.TrimEnd('/')}/{relativePath}";
+
+                            sb.AppendLine($"{ind2}public static readonly StringName {pascalCaseName} = \"{resPath}\";");
                         }
 
-                        sb.AppendLine($"{ind2}public static readonly StringName {pascalCaseName} = \"{fileName}\";");
+                        else
+                        {
+                            if (fileName.Contains(','))
+                            {
+                                GD.PushWarning($"Anvil: '{fileName}' contains a comma and was excluded from EnumNames " +
+                                               $"(would corrupt the enum hint string).");
+                            }
+                            else
+                            {
+                                generatedNames.Add(fileName);
+                            }
+
+                            sb.AppendLine($"{ind2}public static readonly StringName {pascalCaseName} = \"{fileName}\";");
+                        }
                     }
                 }
                 else
@@ -88,8 +99,11 @@ internal static class AnvilGenerator
                     GD.PushError($"Anvil: Directory not found at {target.ResourcePath}");
                 }
 
-                sb.AppendLine();
-                sb.AppendLine($"{ind2}public const string EnumNames = \"{string.Join(',', generatedNames)}\";");
+                if (target.Mode == ForgeMode.Id)
+                {
+                    sb.AppendLine();
+                    sb.AppendLine($"{ind2}public const string EnumNames = \"{string.Join(',', generatedNames)}\";");
+                }
 
                 sb.AppendLine($"{ind1}}}");
                 sb.AppendLine();

@@ -4,6 +4,3 @@
 
 [node name="Audio" type="Node" unique_id=1426156367]
 script = ExtResource("1_rtw3g")
-CurrentAudio = "tree_falling"
-CurrentMusic = "gentle_breeze"
-CurrentSfx = "water_can"

@@ -6,7 +6,7 @@ using System.Collections.Generic;
 
 namespace Anvil.Editor;
 
-internal static partial class AnvilScanner
+public static partial class AnvilScanner
 {
     public static List<ForgeData> ScanProject()
     {
@@ -32,7 +32,7 @@ internal static partial class AnvilScanner
                 namespaceName = namespaceMatch.Groups["Namespace"].Value;
             }
         
-            string pattern = @"\[(?:Anvil\.)?Forge\(""(?<Path>[^""]+)""(?:\s*,\s*(?:recursive\s*:\s*)?(?<Recursive>true|false))?\)\]\s*public\s+static\s+partial\s+class\s+(?<Inner>\w+)";
+            string pattern = @"\[(?:Anvil\.)?Forge\((?<Args>[^)]*)\)\]\s*public\s+static\s+partial\s+class\s+(?<Inner>\w+)";
             MatchCollection matches = Regex.Matches(content, pattern);
         
             foreach (Match match in matches)
@@ -42,16 +42,31 @@ internal static partial class AnvilScanner
         
                 if (outerMatch.Success)
                 {
-                    bool recursive = match.Groups["Recursive"].Success &&
-                                      match.Groups["Recursive"].Value == "true";
+                    string args = match.Groups["Args"].Value;
+
+                    Match pathMatch = ForgePathRegex().Match(args);
+                    if (!pathMatch.Success)
+                    {
+                        GD.PushWarning($"Anvil: Found [Forge] on {match.Groups["Inner"].Value} but couldn't parse a path argument.");
+                        continue;
+                    }
+
+                    Match recursiveMatch = ForgeRecursiveRegex().Match(args, pathMatch.Index + pathMatch.Length);
+                    bool recursive = recursiveMatch.Success && recursiveMatch.Groups["Recursive"].Value == "true";
+
+                    Match modeMatch = ForgeModeRegex().Match(args, pathMatch.Index + pathMatch.Length);
+                    ForgeMode mode = modeMatch.Success && modeMatch.Groups["Mode"].Value == "FullPath"
+                        ? ForgeMode.FullPath
+                        : ForgeMode.Id;
 
                     forgeTargets.Add(new ForgeData
                     {
                         Namespace = namespaceName,
                         OuterClass = outerMatch.Groups["Outer"].Value,
                         InnerClass = match.Groups["Inner"].Value,
-                        ResourcePath = match.Groups["Path"].Value,
-                        Recursive = recursive
+                        ResourcePath = pathMatch.Groups["Path"].Value,
+                        Recursive = recursive,
+                        Mode = mode
                     });
                 }
                 else
@@ -68,6 +83,15 @@ internal static partial class AnvilScanner
     
     [GeneratedRegex(@"namespace\s+(?<Namespace>[\w\.]+)")]
     private static partial Regex NamespaceRegex();
+
+    [GeneratedRegex(@"""(?<Path>[^""]+)""")]
+    private static partial Regex ForgePathRegex();
+
+    [GeneratedRegex(@"recursive\s*:\s*(?<Recursive>true|false)|,\s*(?<Recursive>true|false)\s*(?:,|$)")]
+    private static partial Regex ForgeRecursiveRegex();
+
+    [GeneratedRegex(@"(?:mode\s*:\s*)?(?:ForgeMode\.)?(?<Mode>Id|FullPath)")]
+    private static partial Regex ForgeModeRegex();
 
 }
 #endif
