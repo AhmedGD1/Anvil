@@ -3,12 +3,12 @@
 importer="mp3"
 type="AudioStreamMP3"
 uid="uid://dmuxo35t76k3t"
-path="res://.godot/imported/digging.mp3-315e266b2ae4ba5aa64ae8fd0c6b0664.mp3str"
+path="res://.godot/imported/digging.mp3-36f238d43eda017a0d5145c7928870f8.mp3str"
 
 [deps]
 
-source_file="res://examples/audio_files/sfx/digging.mp3"
-dest_files=["res://.godot/imported/digging.mp3-315e266b2ae4ba5aa64ae8fd0c6b0664.mp3str"]
+source_file="res://addons/examples/audio_files/sfx/digging.mp3"
+dest_files=["res://.godot/imported/digging.mp3-36f238d43eda017a0d5145c7928870f8.mp3str"]
 
 [params]
 
