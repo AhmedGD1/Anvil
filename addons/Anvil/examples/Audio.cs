@@ -13,7 +13,7 @@ public partial class Audio : Node
     */
 
     // Works as a storage for sfx ids
-    [Forge("res://addons/examples/audio_files/sfx/", mode: ForgeMode.FullPath)]
+    [Forge("res://addons/Anvil/examples/audio_files/sfx/", mode: ForgeMode.FullPath)]
     public static partial class SfxName;
 }
 
