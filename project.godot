@@ -25,7 +25,12 @@ project/assembly_name="Anvil"
 
 [editor_plugins]
 
-enabled=PackedStringArray("res://addons/Anvil/plugin.cfg")
+enabled=PackedStringArray("res://addons/anvil/plugin.cfg")
+
+[global_group]
+
+GroupHello=""
+Enemy=""
 
 [physics]
 

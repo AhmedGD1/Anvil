@@ -2,26 +2,35 @@
 using Godot;
 using System.IO;
 
-namespace Anvil.Editor;
+namespace Anvil;
 
-internal static class AnvilFileIO
+public static class AnvilFileIO
 {
-    public static readonly string GeneratedDirPath = "res://addons/Anvil/Generated";
+    public static readonly string GeneratedDirPath = "res://addons/anvil/generated";
 
-    public static void ClearOldGeneratedFiles()
+    /// <summary>
+    /// Deletes previously generated files by known class name. Generated files now use
+    /// a plain ".cs" extension, so they can no longer be distinguished from user files
+    /// by extension alone — pass the exact class name(s) this plugin generates.
+    /// </summary>
+    public static void ClearOldGeneratedFiles(params string[] classNames)
     {
         string globalGeneratedDir = ProjectSettings.GlobalizePath(GeneratedDirPath);
-        if (Directory.Exists(globalGeneratedDir))
+        if (!Directory.Exists(globalGeneratedDir))
+            return;
+
+        foreach (string className in classNames)
         {
-            foreach (string file in Directory.GetFiles(globalGeneratedDir, "*.anvilgen.cs"))
-                File.Delete(file);
+            string filePath = Path.Combine(globalGeneratedDir, $"{className}.cs");
+            if (File.Exists(filePath))
+                File.Delete(filePath);
         }
     }
 
     public static void SaveGeneratedFile(string className, string content)
     {
         string globalGeneratedDir = ProjectSettings.GlobalizePath(GeneratedDirPath);
-        
+
         if (!Directory.Exists(globalGeneratedDir))
         {
             Directory.CreateDirectory(globalGeneratedDir);
@@ -33,9 +42,9 @@ internal static class AnvilFileIO
             File.WriteAllText(gdignorePath, "");
         }
 
-        string fileName = $"{className}.anvilgen.cs";
+        string fileName = $"{className}.cs";
         string filePath = Path.Combine(globalGeneratedDir, fileName);
-        
+
         File.WriteAllText(filePath, content);
         GD.Print($"Anvil: Generated {fileName} successfully.");
     }
