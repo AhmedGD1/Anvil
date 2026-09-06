@@ -1,23 +1,27 @@
 # Anvil
 
-Anvil is a Godot 4 (C#) editor plugin that generates compile-time safe `StringName` constants for tracked project folders and for your project's global groups — so you stop typing raw string paths and group names by hand, and stop finding out about typos at runtime.
+Anvil is a Godot 4 (C#) editor plugin that generates compile-time safe `StringName` constants for the names and paths your project already has — tracked folders, global groups, input actions, and audio buses — so you stop typing raw strings by hand and stop finding out about typos at runtime.
 
 ## Why
 
-Referencing resources and groups by raw string is fragile:
+Referencing resources, groups, actions, and buses by raw string is fragile:
 
 ```csharp
+// note: you can use UID instead, this is just an option when working with raw file paths
 GD.Load<AudioStream>("res://sfx/planted.wav"); // typo-prone, breaks silently if the file moves
+
 AddToGroup("enimies"); // no compiler error, just a bug
+Input.IsActionPressed("interact"); // same risk if the action gets renamed
 ```
 
-Anvil scans folders and project-wide global groups you choose, and generates a single `Storage` class with strongly-typed `StringName` constants for everything it finds:
+Anvil scans folders you choose, plus your project's global groups, input actions, and audio buses, and generates a single `Storage` class with strongly-typed `StringName` constants for everything it finds:
 
 ```csharp
 using Anvil;
 
 GD.Load<AudioStream>(Storage.Sfx.Planted);
 AddToGroup(Storage.GlobalGroups.Enemies);
+Input.IsActionPressed(Storage.InputActions.Interact);
 ```
 
 Rename a file, delete a folder, or mistype an ID, and you get a compile error instead of a silent runtime bug.
@@ -30,12 +34,14 @@ Rename a file, delete a folder, or mistype an ID, and you get a compile error in
   - `FullPath` — constants are the full `res://` path to the file, useful when you need to `Load()` it directly.
 - **Recursive scanning** — optionally include subfolders.
 - **Global groups** — every group declared in **Project Settings → Globals → Groups** is generated automatically as `Storage.GlobalGroups.*`, no tracking required.
+- **Input actions** — every custom action in **Project Settings → Input Map** is generated as `Storage.InputActions.*` (Godot's built-in `ui_*` actions are excluded), no tracking required.
+- **Audio buses** — every bus in the current audio bus layout is generated as `Storage.AudioBuses.*`, no tracking required.
 
 ## Installation
 
 1. Copy the `addons/anvil` folder into your project's `addons/` directory.
 2. Enable the plugin under **Project → Project Settings → Plugins**.
-3. Anvil will generate `Storage.cs` automatically on load, and again whenever you run **Generate Anvil IDs** from the **Project → Tools** menu.
+3. Anvil will generate `Storage.cs` and `anvil_rules.tres` automatically on load, and again whenever you run **Generate Anvil IDs** from the **Project → Tools** menu.
 
 ## Usage
 
@@ -68,8 +74,10 @@ Anvil generates automatically on project load. To regenerate manually (e.g. afte
 ```csharp
 using Anvil;
 
-GD.Load<AudioStream>(Storage.Sfx.Planted.ToString());
+GD.Load<AudioStream>(Storage.Sfx.Planted);
 AddToGroup(Storage.GlobalGroups.Enemies);
+Input.IsActionPressed(Storage.InputActions.Interact);
+AudioServer.SetBusVolumeDb(AudioServer.GetBusIndex(Storage.AudioBuses.Music), -6f);
 
 [Export(PropertyHint.Enum, Storage.Sfx.HintString)]
 public string SoundId;
@@ -80,7 +88,7 @@ If you're referencing IDs from one folder repeatedly in a file, `using static` d
 ```csharp
 using static Anvil.Storage;
 
-GD.Load<AudioStream>(Sfx.Planted.ToString());
+GD.Load<AudioStream>(Sfx.Planted);
 AddToGroup(GlobalGroups.Enemies);
 ```
 
@@ -93,16 +101,19 @@ On generation, Anvil:
 1. Loads `anvil_rules.tres`.
 2. Validates every rule — skipping (with a warning) any rule with an empty output name, a duplicate output name, or a folder that no longer exists.
 3. Scans each valid tracked folder (respecting the `Recursive` flag and excluding `.import`/`.uid` files).
-4. Scans `project.godot` for declared global groups.
-5. Writes everything into `res://addons/anvil/generated/Storage.cs`.
+4. Scans declared global groups and input actions.
+5. Reads the current audio bus layout from `AudioServer`.
+6. Writes everything into `res://addons/anvil/generated/Storage.cs`.
 
 ## File structure
 
 ```
 addons/anvil/
 ├── plugin.cfg
-├── anvil_rules.tres      # generated on first run
 ├── AnvilPlugin.cs
+├── anvil_rules.tres      # generated on first run
+├── generated/            # generated on first run
+│   └── Storage.cs
 ├── icons/
 │   └── anvil_icon.svg
 └── src/
@@ -123,10 +134,6 @@ addons/anvil/
 
 - Renaming or moving a tracked folder in the FileSystem dock is **not** detected automatically — Anvil matches rules by exact string path, so a rename leaves the old rule pointing at a path that no longer exists (reported as a warning on generation) and the new location untracked. Re-track the new location and remove the stale rule manually.
 - `Storage.cs` is regenerated in full every time — don't hand-edit it, your changes will be overwritten.
-
-## Requirements
-
-- Godot 4.x with .NET/Mono support (C#)
 
 ## License
 
