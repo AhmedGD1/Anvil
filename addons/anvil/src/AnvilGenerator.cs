@@ -26,8 +26,12 @@ public static class AnvilGenerator
         sb.AppendLine("{");
 
         AppendGlobalGroupsClass(sb);
+<<<<<<< HEAD
         AppendInputActionsClass(sb);
         AppendAudioBusesClass(sb);
+=======
+        AppendCustomInputsClass(sb);
+>>>>>>> f1613bcaec5cdba670b3f7e93295cdedb0f257ed
 
         foreach (var rule in validRules)
         {
@@ -39,6 +43,7 @@ public static class AnvilGenerator
         AnvilFileIO.SaveGeneratedFile("Storage", sb.ToString());
     }
 
+<<<<<<< HEAD
     private static void AppendAudioBusesClass(StringBuilder sb)
     {
         string ind1 = "    ";
@@ -86,6 +91,8 @@ public static class AnvilGenerator
         sb.AppendLine();
     }
 
+=======
+>>>>>>> f1613bcaec5cdba670b3f7e93295cdedb0f257ed
     private static void AppendGlobalGroupsClass(StringBuilder sb)
     {
         string ind1 = "    ";
@@ -136,12 +143,20 @@ public static class AnvilGenerator
         sb.AppendLine();
     }
 
+<<<<<<< HEAD
     private static void AppendInputActionsClass(StringBuilder sb)
+=======
+    private static void AppendCustomInputsClass(StringBuilder sb)
+>>>>>>> f1613bcaec5cdba670b3f7e93295cdedb0f257ed
     {
         string ind1 = "    ";
         string ind2 = ind1 + "    ";
 
+<<<<<<< HEAD
         sb.AppendLine($"{ind1}public static class InputActions");
+=======
+        sb.AppendLine($"{ind1}public static class CustomInputs");
+>>>>>>> f1613bcaec5cdba670b3f7e93295cdedb0f257ed
         sb.AppendLine($"{ind1}{{");
 
         List<string> actionNames = [];

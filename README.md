@@ -130,4 +130,4 @@ addons/anvil/
 
 ## License
 
-PLACEHOLDER_LICENSE
+MIT
