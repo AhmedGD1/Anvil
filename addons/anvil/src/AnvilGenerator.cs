@@ -26,6 +26,7 @@ public static class AnvilGenerator
         sb.AppendLine("{");
 
         AppendGlobalGroupsClass(sb);
+        AppendCustomInputsClass(sb);
 
         foreach (var rule in validRules)
         {
@@ -37,11 +38,6 @@ public static class AnvilGenerator
         AnvilFileIO.SaveGeneratedFile("Storage", sb.ToString());
     }
 
-    /// <summary>
-    /// Emits a "GlobalGroups" class listing every group declared in Project Settings ->
-    /// Globals -> Groups (stored under the "global_group/" setting prefix in project.godot).
-    /// Always generated, independent of AnvilRule folder tracking.
-    /// </summary>
     private static void AppendGlobalGroupsClass(StringBuilder sb)
     {
         string ind1 = "    ";
@@ -87,6 +83,59 @@ public static class AnvilGenerator
 
         sb.AppendLine();
         sb.AppendLine($"{ind2}public const string HintString = \"{string.Join(',', groupNames)}\";");
+
+        sb.AppendLine($"{ind1}}}");
+        sb.AppendLine();
+    }
+
+    private static void AppendCustomInputsClass(StringBuilder sb)
+    {
+        string ind1 = "    ";
+        string ind2 = ind1 + "    ";
+
+        sb.AppendLine($"{ind1}public static class CustomInputs");
+        sb.AppendLine($"{ind1}{{");
+
+        List<string> actionNames = [];
+        var seenNames = new HashSet<string>();
+
+        foreach (Godot.Collections.Dictionary property in ProjectSettings.Singleton.GetPropertyList())
+        {
+            string settingName = property["name"].AsString();
+            if (!settingName.StartsWith("input/"))
+                continue;
+
+            string actionName = settingName["input/".Length..];
+            if (string.IsNullOrWhiteSpace(actionName))
+                continue;
+
+            if (actionName.StartsWith("ui_"))
+                continue;
+
+            string pascalCaseName = actionName.ToPascalCase();
+
+            if (!seenNames.Add(pascalCaseName))
+            {
+                GD.PushWarning($"Anvil: Skipped duplicate input action ID '{pascalCaseName}' from '{actionName}' " +
+                               "(name collision after PascalCase conversion).");
+                continue;
+            }
+
+            if (actionName.Contains(','))
+            {
+                GD.PushWarning($"Anvil: Input action '{actionName}' contains a comma and was excluded from HintString " +
+                               "(would corrupt the enum hint string).");
+            }
+            else
+            {
+                actionNames.Add(actionName);
+            }
+
+            sb.AppendLine($"{ind2}public static readonly StringName {pascalCaseName} = \"{actionName}\";");
+        }
+
+        sb.AppendLine();
+        sb.AppendLine($"{ind2}public const string HintString = \"{string.Join(',', actionNames)}\";");
 
         sb.AppendLine($"{ind1}}}");
         sb.AppendLine();
