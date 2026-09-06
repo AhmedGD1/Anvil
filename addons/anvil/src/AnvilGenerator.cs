@@ -26,6 +26,8 @@ public static class AnvilGenerator
         sb.AppendLine("{");
 
         AppendGlobalGroupsClass(sb);
+        AppendInputActionsClass(sb);
+        AppendAudioBusesClass(sb);
 
         foreach (var rule in validRules)
         {
@@ -37,11 +39,53 @@ public static class AnvilGenerator
         AnvilFileIO.SaveGeneratedFile("Storage", sb.ToString());
     }
 
-    /// <summary>
-    /// Emits a "GlobalGroups" class listing every group declared in Project Settings ->
-    /// Globals -> Groups (stored under the "global_group/" setting prefix in project.godot).
-    /// Always generated, independent of AnvilRule folder tracking.
-    /// </summary>
+    private static void AppendAudioBusesClass(StringBuilder sb)
+    {
+        string ind1 = "    ";
+        string ind2 = ind1 + "    ";
+
+        sb.AppendLine($"{ind1}public static class AudioBuses");
+        sb.AppendLine($"{ind1}{{");
+
+        List<string> busNames = [];
+        var seenNames = new HashSet<string>();
+
+        int busCount = AudioServer.GetBusCount();
+        for (int i = 0; i < busCount; i++)
+        {
+            string busName = AudioServer.GetBusName(i);
+            if (string.IsNullOrWhiteSpace(busName))
+                continue;
+
+            string pascalCaseName = busName.ToPascalCase();
+
+            if (!seenNames.Add(pascalCaseName))
+            {
+                GD.PushWarning($"Anvil: Skipped duplicate audio bus ID '{pascalCaseName}' from '{busName}' " +
+                               "(name collision after PascalCase conversion).");
+                continue;
+            }
+
+            if (busName.Contains(','))
+            {
+                GD.PushWarning($"Anvil: Audio bus '{busName}' contains a comma and was excluded from HintString " +
+                               "(would corrupt the enum hint string).");
+            }
+            else
+            {
+                busNames.Add(busName);
+            }
+
+            sb.AppendLine($"{ind2}public static readonly StringName {pascalCaseName} = \"{busName}\";");
+        }
+
+        sb.AppendLine();
+        sb.AppendLine($"{ind2}public const string HintString = \"{string.Join(',', busNames)}\";");
+
+        sb.AppendLine($"{ind1}}}");
+        sb.AppendLine();
+    }
+
     private static void AppendGlobalGroupsClass(StringBuilder sb)
     {
         string ind1 = "    ";
@@ -87,6 +131,59 @@ public static class AnvilGenerator
 
         sb.AppendLine();
         sb.AppendLine($"{ind2}public const string HintString = \"{string.Join(',', groupNames)}\";");
+
+        sb.AppendLine($"{ind1}}}");
+        sb.AppendLine();
+    }
+
+    private static void AppendInputActionsClass(StringBuilder sb)
+    {
+        string ind1 = "    ";
+        string ind2 = ind1 + "    ";
+
+        sb.AppendLine($"{ind1}public static class InputActions");
+        sb.AppendLine($"{ind1}{{");
+
+        List<string> actionNames = [];
+        var seenNames = new HashSet<string>();
+
+        foreach (Godot.Collections.Dictionary property in ProjectSettings.Singleton.GetPropertyList())
+        {
+            string settingName = property["name"].AsString();
+            if (!settingName.StartsWith("input/"))
+                continue;
+
+            string actionName = settingName["input/".Length..];
+            if (string.IsNullOrWhiteSpace(actionName))
+                continue;
+
+            if (actionName.StartsWith("ui_"))
+                continue;
+
+            string pascalCaseName = actionName.ToPascalCase();
+
+            if (!seenNames.Add(pascalCaseName))
+            {
+                GD.PushWarning($"Anvil: Skipped duplicate input action ID '{pascalCaseName}' from '{actionName}' " +
+                               "(name collision after PascalCase conversion).");
+                continue;
+            }
+
+            if (actionName.Contains(','))
+            {
+                GD.PushWarning($"Anvil: Input action '{actionName}' contains a comma and was excluded from HintString " +
+                               "(would corrupt the enum hint string).");
+            }
+            else
+            {
+                actionNames.Add(actionName);
+            }
+
+            sb.AppendLine($"{ind2}public static readonly StringName {pascalCaseName} = \"{actionName}\";");
+        }
+
+        sb.AppendLine();
+        sb.AppendLine($"{ind2}public const string HintString = \"{string.Join(',', actionNames)}\";");
 
         sb.AppendLine($"{ind1}}}");
         sb.AppendLine();
