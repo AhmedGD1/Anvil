@@ -4,6 +4,7 @@ using System.IO;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System;
 
 namespace Anvil;
 
@@ -28,6 +29,8 @@ public static class AnvilGenerator
         AppendGlobalGroupsClass(sb);
         AppendInputActionsClass(sb);
         AppendAudioBusesClass(sb);
+        AppendPhysicsLayersClass(sb, "PhysicsLayers2D", "layer_names/2d_physics/");
+        AppendPhysicsLayersClass(sb, "PhysicsLayers3D", "layer_names/3d_physics/");
 
         foreach (var rule in validRules)
         {
@@ -131,6 +134,47 @@ public static class AnvilGenerator
 
         sb.AppendLine();
         sb.AppendLine($"{ind2}public const string HintString = \"{string.Join(',', groupNames)}\";");
+
+        sb.AppendLine($"{ind1}}}");
+        sb.AppendLine();
+    }
+
+    private static void AppendPhysicsLayersClass(StringBuilder sb, string className, string settingPrefix)
+    {
+        string ind1 = "    ";
+        string ind2 = ind1 + "    ";
+
+        sb.AppendLine($"{ind1}public static class {className}");
+        sb.AppendLine($"{ind1}{{");
+
+        var seenNames = new HashSet<string>();
+
+        foreach (Godot.Collections.Dictionary property in ProjectSettings.Singleton.GetPropertyList())
+        {
+            string settingName = property["name"].AsString();
+            if (!settingName.StartsWith(settingPrefix))
+                continue;
+
+            string suffix = settingName[settingPrefix.Length..];
+            if (!int.TryParse(suffix.AsSpan("layer_".Length), out int layerNumber))
+                continue;
+
+            string layerName = ProjectSettings.Singleton.GetSetting(settingName).AsString();
+            if (string.IsNullOrWhiteSpace(layerName))
+                continue;
+
+            string pascalCaseName = layerName.ToPascalCase();
+
+            if (!seenNames.Add(pascalCaseName))
+            {
+                GD.PushWarning($"Anvil: Skipped duplicate physics layer ID '{pascalCaseName}' from '{layerName}' " +
+                               "(name collision after PascalCase conversion).");
+                continue;
+            }
+
+            uint bitValue = 1u << (layerNumber - 1);
+            sb.AppendLine($"{ind2}public const uint {pascalCaseName} = {bitValue};");
+        }
 
         sb.AppendLine($"{ind1}}}");
         sb.AppendLine();
