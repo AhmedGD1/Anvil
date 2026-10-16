@@ -12,8 +12,8 @@ public partial class AnvilPlugin : EditorPlugin
     {
         _contextMenu = new AnvilContextMenu();
         _contextMenu.Initialize(this);
+        
         AddContextMenuPlugin(EditorContextMenuPlugin.ContextMenuSlot.Filesystem, _contextMenu);
-
         AddToolMenuItem("Generate Anvil IDs", Callable.From(Generate));
 
         Generate();
@@ -25,7 +25,7 @@ public partial class AnvilPlugin : EditorPlugin
         RemoveContextMenuPlugin(_contextMenu);
     }
 
-    private void Generate()
+    private static void Generate()
     {
         AnvilFileIO.ClearOldGeneratedFiles("Storage");
 

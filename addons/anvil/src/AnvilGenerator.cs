@@ -10,7 +10,10 @@ namespace Anvil;
 
 public static class AnvilGenerator
 {
-    private static readonly HashSet<string> ExcludedExtensions = [".import", ".uid"];
+    private static readonly HashSet<string> ExcludedExtensions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".import", ".uid"
+    };
 
     public static void GenerateAndSave(AnvilRuleSet rules)
     {
@@ -233,6 +236,18 @@ public static class AnvilGenerator
         sb.AppendLine();
     }
 
+    private static bool ShouldIncludeFile(string filePath, HashSet<string> includedExtensions)
+    {
+        string extension = Path.GetExtension(filePath);
+
+        if (ExcludedExtensions.Contains(extension))
+            return false;
+
+        // An empty per-folder filter preserves the original behavior: include all files
+        // except Godot sidecar files such as .import and .uid.
+        return includedExtensions.Count == 0 || includedExtensions.Contains(extension);
+    }
+
     private static void AppendFolderClass(StringBuilder sb, AnvilRule rule)
     {
         string ind1 = "    ";
@@ -245,9 +260,24 @@ public static class AnvilGenerator
         List<string> generatedNames = [];
 
         var searchOption = rule.Recursive ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly;
+        var includedExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        if (rule.IncludedExtensions is not null)
+        foreach (string configuredExtension in rule.IncludedExtensions)
+        {
+            if (string.IsNullOrWhiteSpace(configuredExtension))
+                continue;
+
+            string extension = configuredExtension.Trim();
+            if (!extension.StartsWith(".", StringComparison.Ordinal))
+                extension = "." + extension;
+
+            includedExtensions.Add(extension);
+        }
 
         var files = Directory.GetFiles(dirPath, "*", searchOption)
-            .Where(f => !ExcludedExtensions.Contains(Path.GetExtension(f).ToLower()));
+            .Where(f => ShouldIncludeFile(f, includedExtensions))
+            .OrderBy(f => f, StringComparer.Ordinal);
 
         var seenNames = new HashSet<string>();
 

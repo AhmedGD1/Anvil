@@ -6,16 +6,19 @@ namespace Anvil;
 [Tool, GlobalClass]
 public partial class AnvilRule : Resource
 {
-    [Export(PropertyHint.Dir)] 
+    [Export(PropertyHint.Dir)]
     public string SourceFolder { get; set; } = "";
 
-    [Export] 
+    [Export]
     public string OutputName { get; set; } = "";
 
     [Export]
     public bool Recursive { get; set; } = false;
 
-    [Export] 
+    [Export]
     public ForgeMode Mode { get; set; } = ForgeMode.Id;
+
+    [Export]
+    public Godot.Collections.Array<string> IncludedExtensions { get; set; } = [];
 }
 #endif
