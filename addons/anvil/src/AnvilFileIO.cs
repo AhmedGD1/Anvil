@@ -8,11 +8,6 @@ public static class AnvilFileIO
 {
     public static readonly string GeneratedDirPath = "res://addons/anvil/generated";
 
-    /// <summary>
-    /// Deletes previously generated files by known class name. Generated files now use
-    /// a plain ".cs" extension, so they can no longer be distinguished from user files
-    /// by extension alone — pass the exact class name(s) this plugin generates.
-    /// </summary>
     public static void ClearOldGeneratedFiles(params string[] classNames)
     {
         string globalGeneratedDir = ProjectSettings.GlobalizePath(GeneratedDirPath);
@@ -44,6 +39,12 @@ public static class AnvilFileIO
 
         string fileName = $"{className}.cs";
         string filePath = Path.Combine(globalGeneratedDir, fileName);
+
+        if (File.Exists(filePath) && File.ReadAllText(filePath) == content)
+        {
+            GD.Print($"Anvil: {fileName} is already up to date.");
+            return;
+        }
 
         File.WriteAllText(filePath, content);
         GD.Print($"Anvil: Generated {fileName} successfully.");

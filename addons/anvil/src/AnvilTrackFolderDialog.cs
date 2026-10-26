@@ -4,11 +4,6 @@ using System;
 
 namespace Anvil;
 
-/// <summary>
-/// Dialog shown when tracking (or re-configuring) a folder from the FileSystem dock's
-/// right-click context menu. Lets the user configure the generated class name, recursion,
-/// mode, and optional per-folder extension filters (comma separated, e.g. "png, tscn").
-/// </summary>
 public partial class AnvilTrackFolderDialog : ConfirmationDialog
 {
     private const int ContentWidth = 440;
@@ -30,9 +25,9 @@ public partial class AnvilTrackFolderDialog : ConfirmationDialog
 
         var root = new VBoxContainer
         {
-            // Fixes the "overly tall dialog": gives wrapped labels a real width to wrap against.
             CustomMinimumSize = new Vector2(ContentWidth, 0)
         };
+
         root.AddThemeConstantOverride("separation", 8);
         AddChild(root);
 
@@ -47,6 +42,7 @@ public partial class AnvilTrackFolderDialog : ConfirmationDialog
 
         _outputNameField = AddRow<LineEdit>(grid, "Output Name:");
         _outputNameField.PlaceholderText = "e.g. Sfx";
+        _outputNameField.TooltipText = "A valid C# class name: letters, digits and '_', not starting with a digit.";
         _outputNameField.TextChanged += _ => UpdateOkButton();
 
         _modeField = AddRow<OptionButton>(grid, "Mode:");
@@ -84,13 +80,9 @@ public partial class AnvilTrackFolderDialog : ConfirmationDialog
 
     private void UpdateOkButton()
     {
-        GetOkButton().Disabled = string.IsNullOrWhiteSpace(_outputNameField.Text);
+        GetOkButton().Disabled = !AnvilNaming.IsValidOutputName(_outputNameField.Text.Trim());
     }
 
-    /// <summary>
-    /// Opens the dialog for a folder. If an existing rule already tracks this folder,
-    /// its values are pre-filled and saving will replace that rule instead of adding a new one.
-    /// </summary>
     public void OpenFor(string sourceFolder)
     {
         _sourceFolder = sourceFolder;
@@ -117,15 +109,11 @@ public partial class AnvilTrackFolderDialog : ConfirmationDialog
 
         UpdateOkButton();
 
-        // Height 0 lets the dialog shrink-wrap its content; the user can still resize it.
         PopupCentered(new Vector2I(ContentWidth + 32, 0));
         _outputNameField.GrabFocus();
         _outputNameField.SelectAll();
     }
 
-    /// <summary>
-    /// Parses "png, .tscn; ogg" style input into a normalized, de-duplicated list (".png", ".tscn", ".ogg").
-    /// </summary>
     private Godot.Collections.Array<string> GetIncludedExtensions()
     {
         Godot.Collections.Array<string> extensions = [];

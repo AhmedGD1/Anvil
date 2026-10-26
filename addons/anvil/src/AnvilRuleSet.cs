@@ -8,5 +8,6 @@ namespace Anvil;
 public partial class AnvilRuleSet : Resource
 {
     [Export] public Array<AnvilRule> FolderRules { get; set; } = [];
+    [Export] public Array<AnvilSceneRule> SceneRules { get; set; } = [];
 }
 #endif

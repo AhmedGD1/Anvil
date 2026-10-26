@@ -1,109 +1,215 @@
 # Anvil
 
-Anvil is a Godot 4 (C#) editor plugin that generates compile-time safe `StringName` constants for the names and paths your project already has — tracked folders, global groups, input actions, and audio buses — so you stop typing raw strings by hand and stop finding out about typos at runtime.
-
-## Why
-
-Referencing resources, groups, actions, and buses by raw string is fragile:
-
-```csharp
-// note: you can use UID instead, this is just an option when working with raw file paths
-GD.Load<AudioStream>("res://sfx/planted.wav"); // typo-prone, breaks silently if the file moves
-
-AddToGroup("enimies"); // no compiler error, just a bug
-Input.IsActionPressed("interact"); // same risk if the action gets renamed
-```
-
-Anvil scans folders you choose, plus your project's global groups, input actions, and audio buses, and generates a single `Storage` class with strongly-typed `StringName` constants for everything it finds:
+A Godot 4 (C#) editor plugin that generates compile-time safe constants for the names and paths your project already has. Typos become compile errors instead of silent runtime bugs.
 
 ```csharp
 using Anvil;
-
-GD.Load<AudioStream>(Storage.Sfx.Planted);
-AddToGroup(Storage.GlobalGroups.Enemies);
-Input.IsActionPressed(Storage.InputActions.Interact);
-```
-
-Rename a file, delete a folder, or mistype an ID, and you get a compile error instead of a silent runtime bug.
-
-## Features
-
-- **Folder tracking** — right-click any folder in the FileSystem dock and choose **Track with Anvil...** to generate an ID for every file inside it.
-- **Two generation modes** per tracked folder:
-  - `Id` — constants are just the file's base name (`Storage.Sfx.Planted`), plus a `HintString` for use with `[Export(PropertyHint.Enum, ...)]`.
-  - `FullPath` — constants are the full `res://` path to the file, useful when you need to `Load()` it directly.
-- **Recursive scanning** — optionally include subfolders.
-- **Global groups** — every group declared in **Project Settings → Globals → Groups** is generated automatically as `Storage.GlobalGroups.*`, no tracking required.
-- **Input actions** — every custom action in **Project Settings → Input Map** is generated as `Storage.InputActions.*` (Godot's built-in `ui_*` actions are excluded), no tracking required.
-- **Audio buses** — every bus in the current audio bus layout is generated as `Storage.AudioBuses.*`, no tracking required.
-
-## Installation
-
-1. Copy the `addons/anvil` folder into your project's `addons/` directory.
-2. Enable the plugin under **Project → Project Settings → Plugins**.
-3. Anvil will generate `Storage.cs` and `anvil_rules.tres` automatically on load, and again whenever you run **Generate Anvil IDs** from the **Project → Tools** menu.
-
-## Usage
-
-### Tracking a folder
-
-Right-click any folder in the FileSystem dock and select **Track with Anvil...**.
-
-![Anvil folder tracking example](docs/right_click_example.png)
-
-![Anvil folder tracking example](docs/options_example.png)
-
-You'll be asked for:
-
-| Field | Description |
-|---|---|
-| **Output Name** | The name of the generated nested class, e.g. `Sfx` → `Storage.Sfx` |
-| **Recursive** | Whether to include files in subfolders |
-| **Mode** | `Id` or `FullPath`, as described above |
-
-![Anvil folder tracking example](docs/edit_example.png)
-
-Already-tracked folders show **Edit Anvil Tracking...** and **Untrack from Anvil** instead, so you can reconfigure or stop tracking a folder at any time.
-
-### Generating IDs
-
-Anvil generates automatically on project load. To regenerate manually (e.g. after adding new files to a tracked folder), use **Project → Tools → Generate Anvil IDs**.
-
-### Using generated IDs
-
-```csharp
-using Anvil;
-
-GD.Load<AudioStream>(Storage.Sfx.Planted);
-AddToGroup(Storage.GlobalGroups.Enemies);
-Input.IsActionPressed(Storage.InputActions.Interact);
-AudioServer.SetBusVolumeDb(AudioServer.GetBusIndex(Storage.AudioBuses.Music), -6f);
-
-[Export(PropertyHint.Enum, Storage.Sfx.HintString)]
-public string SoundId;
-```
-
-If you're referencing IDs from one folder repeatedly in a file, `using static` drops the `Storage.` prefix:
-
-```csharp
-using static Anvil.Storage;
 
 GD.Load<AudioStream>(Sfx.Planted);
 AddToGroup(GlobalGroups.Enemies);
+Input.IsActionPressed(InputActions.Interact);
+animationPlayer.Play(Player.Animations.Attack);
+CollisionMask = PhysicsLayers2D.Walls | PhysicsLayers2D.Enemies;
 ```
 
-## How it works
+**Requirements:** Godot 4 with C# (developed against 4.7), .NET 8.
 
-Anvil stores your tracked-folder configuration in `res://addons/anvil/anvil_rules.tres` — a plain Godot `Resource` (`AnvilRuleSet`, containing a list of `AnvilRule`), editable either through the context menu dialog or directly in the inspector.
+## Installation
 
-On generation, Anvil:
+1. Copy `addons/anvil` into your project's `addons/` folder.
+2. Enable it in **Project → Project Settings → Plugins**.
+3. Anvil generates `AnvilIds.cs`, `AnvilSceneIds.cs` and `anvil_rules.tres` on load. Regenerate any time with **Project → Tools → Generate Anvil IDs**.
 
-1. Loads `anvil_rules.tres`.
-2. Validates every rule — skipping (with a warning) any rule with an empty output name, a duplicate output name, or a folder that no longer exists.
-3. Scans each valid tracked folder (respecting the `Recursive` flag and excluding `.import`/`.uid` files).
-4. Scans declared global groups and input actions.
-5. Reads the current audio bus layout from `AudioServer`.
-6. Writes everything into `res://addons/anvil/generated/Storage.cs`.
+---
+
+## Folder tracking
+
+Right-click a folder in the FileSystem dock → **Track with Anvil...** to generate a constant for every file in it.
+
+![Right-click menu](preview_images\folder_track.png)
+![Edit menu](preview_images\folder_track_edit.png)
+
+| Field | Description |
+|---|---|
+| Output Name | Generated class name (`Sfx` → `Sfx.Planted`) |
+| Mode | `Id` or `FullPath` (see below) |
+| Extensions | Optional filter, e.g. `png, ogg`. Empty = all files |
+| Recursive | Include subfolders |
+
+Already-tracked folders show **Edit Anvil Tracking...** and **Untrack from Anvil**.
+
+```csharp
+// Folder: res://sfx/  (Output Name: Sfx)
+GD.Load<AudioStream>(Sfx.Planted);
+```
+
+## Generation modes
+
+**`Id`** — constant is the file's base name, plus a `HintString`.
+
+```csharp
+// Sfx.Planted == "planted"
+[Export(PropertyHint.Enum, Sfx.HintString)]
+public string SoundId;
+```
+
+**`FullPath`** — constant is the full `res://` path, ready for `Load()`.
+
+```csharp
+// Sfx.Planted == "res://sfx/others/planted.mp3"
+GD.Load<AudioStream>(Sfx.Planted);
+```
+
+## Recursive scanning
+
+Tick **Recursive** to include subfolders.
+
+```csharp
+// res://sfx/digging.mp3
+// res://sfx/others/planted.mp3   <- included when Recursive is on
+Sfx.Digging;
+Sfx.Planted;
+```
+
+## Extension filter
+
+Only include the listed extensions. `.import` and `.uid` files are always excluded.
+
+```text
+Extensions: png, ogg
+```
+```csharp
+Icons.Sword;     // sword.png   ✔
+Icons.Hit;       // hit.ogg     ✔
+                 // notes.txt   ✘ skipped
+```
+
+## Global groups
+
+Generated automatically from **Project Settings → Globals → Groups**.
+
+```csharp
+AddToGroup(GlobalGroups.Enemies);
+
+[Export(PropertyHint.Enum, GlobalGroups.HintString)]
+public string TargetGroup;
+```
+
+## Input actions
+
+Generated automatically from **Project Settings → Input Map**. Built-in `ui_*` actions are excluded.
+
+```csharp
+if (Input.IsActionPressed(InputActions.Interact)) { }
+```
+
+## Audio buses
+
+Generated automatically from the current audio bus layout.
+
+```csharp
+AudioServer.SetBusVolumeDb(AudioServer.GetBusIndex(AudioBuses.Music), -6f);
+```
+
+## Physics layers
+
+Generated automatically from the *named* layers in **Project Settings → Layer Names → 2D / 3D Physics**. Each is a `uint` bit mask.
+
+```csharp
+CollisionLayer = PhysicsLayers2D.Player;
+CollisionMask  = PhysicsLayers2D.Walls | PhysicsLayers2D.Enemies;
+
+CollisionMask  = PhysicsLayers3D.World;
+```
+
+## HintString
+
+Groups, input actions, audio buses, `Id`-mode folders and scene animation classes all expose a `HintString` for inspector dropdowns.
+
+```csharp
+[Export(PropertyHint.Enum, AudioBuses.HintString)]
+public string Bus;
+```
+
+## `using static`
+
+Drop the class prefix when you use one class a lot.
+
+```csharp
+using static Anvil.Sfx;
+using static Anvil.GlobalGroups;
+
+GD.Load<AudioStream>(Planted);
+AddToGroup(Enemies);
+```
+
+## Scene tracking
+
+Generates a constant for every animation in a scene, so `Play("atack")` typos become compile errors.
+
+**Supported nodes:** `AnimationPlayer`, `AnimatedSprite2D`, `AnimatedSprite3D` (only nodes owned by the scene itself, not instanced sub-scenes).
+
+### 1. Track a scene
+
+![Scene-track menu](preview_images\scene_track_edit.png)
+
+Right-click a `.tscn` / `.scn` file → **Track Scene with Anvil...**
+
+| Field | Shown when | Description |
+|---|---|---|
+| Output Name | Root has **no** C# script | Name of the generated class |
+| Flatten | Always | One merged class vs. one class per node (see below) |
+
+Tracked scenes show **Edit Anvil Scene Tracking...** and **Untrack Scene from Anvil**. Tracking is by UID, so moving or renaming the scene keeps working.
+
+### 2. Where do the ids go?
+
+| Scene root | Result | Access |
+|---|---|---|
+| Has a built C# script | Added to that script's class | `Player.Animations.Idle` |
+| No script, or script not built yet | Standalone class `Anvil.<OutputName>` | `Anvil.SampleScene.Animations.Idle` |
+
+### 3. With a root script
+
+Ids are added to your own class, in its namespace. Requirements: the class is `partial` and the project has been built.
+
+```csharp
+namespace Game;
+
+public partial class Player : CharacterBody2D
+{
+    public override void _Ready()
+    {
+        GetNode<AnimationPlayer>("Anim").Play(Animations.Idle);
+    }
+}
+```
+
+### 4. Without a root script
+
+Pick an **Output Name** in the dialog (e.g. `SampleScene`).
+
+```csharp
+using Anvil;
+
+animationPlayer.Play(SampleScene.Animations.Idle);
+```
+
+### 5. Flatten
+
+**On (default)** — all animations of all nodes merged into one `Animations` class.
+
+```csharp
+Player.Animations.Idle;     // from AnimationPlayer
+Player.Animations.Hophop;   // from AnimatedSprite
+```
+
+**Off** — one class per node, named after the node (or its path if names repeat).
+
+```csharp
+Player.AnimationPlayer.Idle;
+Player.AnimatedSprite.Hophop;
+```
 
 ## File structure
 
@@ -111,29 +217,41 @@ On generation, Anvil:
 addons/anvil/
 ├── plugin.cfg
 ├── AnvilPlugin.cs
-├── anvil_rules.tres      # generated on first run
-├── generated/            # generated on first run
-│   └── Storage.cs
+├── anvil_rules.tres      # generated
+├── generated/            # generated (with .gdignore)
+│   ├── AnvilIds.cs
+│   └── AnvilSceneIds.cs
 ├── icons/
 │   └── anvil_icon.svg
 └── src/
     ├── AnvilContextMenu.cs
     ├── AnvilFileIO.cs
     ├── AnvilGenerator.cs
+    ├── AnvilNameScope.cs
+    ├── AnvilNaming.cs
     ├── AnvilRule.cs
     ├── AnvilRuleManager.cs
     ├── AnvilRuleSet.cs
+    ├── AnvilSceneGenerator.cs
+    ├── AnvilSceneReader.cs
+    ├── AnvilSceneRule.cs
+    ├── AnvilScriptResolver.cs
     ├── AnvilTrackFolderDialog.cs
+    ├── AnvilTrackSceneDialog.cs
     ├── AnvilValidator.cs
-    └── ForgeMode.cs
+    ├── ForgeMode.cs
+    └── SceneSources.cs
 ```
-
-`Storage.cs` is generated at runtime into `res://addons/anvil/generated/` — not part of the repo itself.
 
 ## Known limitations
 
-- Renaming or moving a tracked folder in the FileSystem dock is **not** detected automatically — Anvil matches rules by exact string path, so a rename leaves the old rule pointing at a path that no longer exists (reported as a warning on generation) and the new location untracked. Re-track the new location and remove the stale rule manually.
-- `Storage.cs` is regenerated in full every time — don't hand-edit it, your changes will be overwritten.
+- Renaming or moving a tracked **folder** isn't detected. Re-track the new location and remove the stale rule. (Scenes are tracked by UID and survive moves.)
+- Scene ids come from the **root node** only: its C# script, and animation nodes owned by the scene itself.
+- Ids go into a script class only after the project has been built; until then a standalone class is generated.
+- Two scenes sharing a root script: only the first gets ids in the script class.
+- A root-script member named `Animations` (Flatten on) or a node class name clashing with a Godot class falls back to a standalone class or a `Names` suffix, with a warning.
+- Generated files are overwritten every time — don't hand-edit them.
+- Generation runs on plugin load and via the Tools menu, not on every file or settings change.
 
 ## License
 

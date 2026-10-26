@@ -1,6 +1,7 @@
 #if TOOLS
-using Godot;
+using System.Collections.Generic;
 using System.Linq;
+using Godot;
 
 namespace Anvil;
 
@@ -35,20 +36,6 @@ public static class AnvilRuleManager
         return rules.FolderRules.FirstOrDefault(r => r.SourceFolder == sourceFolder);
     }
 
-    public static void SaveRule(AnvilRule newRule, AnvilRule replacing)
-    {
-        var rules = LoadOrCreate();
-
-        if (replacing is not null)
-            rules.FolderRules.Remove(replacing);
-
-        rules.FolderRules.Add(newRule);
-        ResourceSaver.Save(rules, RulesPath);
-
-        GD.Print($"Anvil: Tracking '{newRule.SourceFolder}' as '{newRule.OutputName}'. " +
-                 "Run 'Generate Anvil IDs' from the tool menu to apply.");
-    }
-
     public static void RemoveRule(AnvilRule rule)
     {
         var rules = LoadOrCreate();
@@ -57,6 +44,52 @@ public static class AnvilRuleManager
 
         GD.Print($"Anvil: Stopped tracking '{rule.SourceFolder}'. " +
                  "Run 'Generate Anvil IDs' from the tool menu to apply.");
+    }
+
+    public static AnvilSceneRule FindRuleForScene(string scenePath)
+    {
+        var rules = LoadOrCreate();
+        return rules.SceneRules?.FirstOrDefault(r => r.Tracks(scenePath));
+    }
+
+    public static void RemoveSceneRule(AnvilSceneRule rule)
+    {
+        var rules = LoadOrCreate();
+        rules.SceneRules?.Remove(rule);
+        ResourceSaver.Save(rules, RulesPath);
+
+        GD.Print($"Anvil: Stopped tracking scene '{rule.ScenePath}'. " +
+                 "Run 'Generate Anvil IDs' from the tool menu to apply.");
+    }
+
+    public static void SaveRule(AnvilRule newRule, AnvilRule replacing)
+    {
+        var rules = LoadOrCreate();
+        Upsert(rules.FolderRules, newRule, replacing);
+        ResourceSaver.Save(rules, RulesPath);
+
+        GD.Print($"Anvil: Tracking '{newRule.SourceFolder}' as '{newRule.OutputName}'. " +
+                "Run 'Generate Anvil IDs' from the tool menu to apply.");
+    }
+
+    public static void SaveSceneRule(AnvilSceneRule newRule, AnvilSceneRule replacing)
+    {
+        var rules = LoadOrCreate();
+        Upsert(rules.SceneRules, newRule, replacing);
+        ResourceSaver.Save(rules, RulesPath);
+
+        GD.Print($"Anvil: Tracking scene '{newRule.ScenePath}' as '{newRule.OutputName}'. " +
+                "Run 'Generate Anvil IDs' from the tool menu to apply.");
+    }
+
+    private static void Upsert<T>(IList<T> list, T item, T replacing) where T : class
+    {
+        int index = replacing is null ? -1 : list.IndexOf(replacing);
+
+        if (index >= 0)
+            list[index] = item;
+        else
+            list.Add(item);
     }
 }
 #endif

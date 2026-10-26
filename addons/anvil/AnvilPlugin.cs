@@ -27,12 +27,15 @@ public partial class AnvilPlugin : EditorPlugin
 
     private static void Generate()
     {
-        AnvilFileIO.ClearOldGeneratedFiles("Storage");
+        // Migration: older versions generated Storage.cs / Storage.Scenes.cs. Those would now
+        // declare duplicates of the new classes, so remove them (the new files have other names).
+        AnvilFileIO.ClearOldGeneratedFiles("Storage", "Storage.Scenes");
 
         GD.Print("Anvil: Starting ID Generation...");
 
         var rules = AnvilRuleManager.LoadOrCreate();
-        AnvilGenerator.GenerateAndSave(rules);
+        var folderNames = AnvilGenerator.GenerateAndSave(rules);
+        AnvilSceneGenerator.GenerateAndSave(rules, folderNames);
 
         GD.Print("Anvil: Generation Pipeline Complete!");
     }
